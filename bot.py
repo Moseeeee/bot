@@ -24,8 +24,8 @@ from tinydb import TinyDB, Query
 import schedule
 import threading
 from collections import deque
-
-
+import base64
+import requests
 
 
 
@@ -41,38 +41,63 @@ bot = telebot.TeleBot(API_TOKEN)
 
 
 
-allowed_db = TinyDB('allowed_commands.json')
-ignored_db = TinyDB('ignored_users.json')
 
-admin_id = 6282374712
 
-if not ignored_db.all():
-    ignored_db.insert({'user_id': -1})  
+gh_auth_token = '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'
+gh_owner = 'Moseeeee'
+gh_repo = 'bot'
+allowed_file_path = 'path/allowed_commands.json'
+ignored_file_path = 'path/ignored_users.json'
 
-if not allowed_db.all():
-    allowed_db.insert({'user_id': -1}) 
 
-def check_access(user_id):
-    allowed_users = [user.get('user_id') for user in allowed_db.all()]
-    return user_id in allowed_users
+def get_github_file_content(filename):
+    headers = {
+        'Authorization': f'token {gh_auth_token}'
+    }
+    response = requests.get(f'https://api.github.com/repos/{gh_owner}/{gh_repo}/contents/{filename}', headers=headers)
+    
+    if response.status_code == 200:
+        content = response.json()
+        if 'content' in content:
+            file_content = base64.b64decode(content['content']).decode('utf-8')
+            return file_content
+    return None
 
-def remove_user_from_ignored(user_id):
-    User = Query()
-    ignored_db.remove(User.user_id == user_id)
+def update_github_file(filename, content, message):
+    data = {
+        'message': message,
+        'content': base64.b64encode(content.encode()).decode(),
+        'sha': get_github_file_sha(filename)
+    }
+    headers = {
+        'Authorization': f'token {gh_auth_token}'
+    }
+    response = requests.put(f'https://api.github.com/repos/{gh_owner}/{gh_repo}/contents/{filename}', headers=headers, json=data)
+    return response.status_code == 200
 
-def is_ignored(user_id):
-    return bool(ignored_db.search(Query().user_id == user_id))
+def get_github_file_sha(filename):
+    headers = {
+        'Authorization': f'token {gh_auth_token}'
+    }
+    response = requests.get(f'https://api.github.com/repos/{gh_owner}/{gh_repo}/contents/{filename}', headers=headers)
+    
+    if response.status_code == 200:
+        content = response.json()
+        if 'sha' in content:
+            return content['sha']
+    return None
 
 def add_user_to_allowed(user_id):
-    allowed_db.insert({'user_id': user_id})
-
+    allowed_data = allowed_db.all()
+    allowed_data.append({'user_id': user_id})
+    update_github_file(allowed_file_path, str(allowed_data), 'Add user to allowed list')
+            
 def remove_user_from_allowed(user_id):
-    User = Query()
-    allowed_db.remove(User.user_id == user_id)
+    allowed_data = allowed_db.all()
+    updated_data = [user for user in allowed_data if user['user_id'] != user_id]
+    update_github_file(allowed_file_path, str(updated_data), 'Remove user from allowed list')
 
-@bot.message_handler(func=lambda message: is_ignored(message.from_user.id))
-def ignore_message(message):
-    pass
+# Ваши обработчики сообщений оставляем без изменений
 
 @bot.message_handler(func=lambda message: message.text.strip().lower() == '+игнор')
 def add_ignore(message):
