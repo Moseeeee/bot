@@ -24,8 +24,6 @@ from tinydb import TinyDB, Query
 import schedule
 import threading
 from collections import deque
-from pydub import AudioSegment
-import speech_recognition as sr
 
 
 
@@ -1071,30 +1069,6 @@ def handle_quarrel(message):
 
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                
-recognizer = sr.Recognizer()
-
-@bot.message_handler(content_types=['voice'])
-def handle_voice(message):
-    voice = message.voice.file_id
-    file_info = bot.get_file(voice)
-    downloaded_file = bot.download_file(file_info.file_path)
-
-    with open("voice.ogg", "wb") as new_file:
-        new_file.write(downloaded_file)
-
-    sound = AudioSegment.from_file("voice.ogg")
-    sound.export("voice.wav", format="wav")
-
-    with sr.AudioFile("voice.wav") as source:
-        audio_data = recognizer.record(source)
-
-        try:
-            text = recognizer.recognize_google(audio_data, language="ru-RU")
-            bot.send_message(message.chat.id, "Текст, распознанный из речи: " + text)
-        except sr.UnknownValueError:
-            bot.send_message(message.chat.id, "Извините, не удалось распознать речь")
-        except sr.RequestError as e:
-            bot.send_message(message.chat.id, "Ошибка при запросе к Web Speech API: {0}".format(e))
 
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
